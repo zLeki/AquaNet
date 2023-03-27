@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os, sys, logging, math, traceback, optparse, threading
+import urllib
 from time import sleep
 
 from scapy.layers.l2 import Ether, ARP
@@ -664,18 +665,13 @@ def kickalloff():
     os.system("clear||cls")
 
     print("\n{}Terminate all{} selected...{}\n".format(RED, GREEN, END))
-    global stopAnimation
-    stopAnimation = False
-    t = threading.Thread(target=scanningAnimation, args=('Scanning...',))
     t.daemon = True
     t.start()
-
     # commence scanning process
     try:
         scanNetwork()
     except KeyboardInterrupt:
         shutdown()
-    stopAnimation = True
 
     print("Target(s): ")
     print("{:<5} | {:<15} | {:<17} | {:<20}".format("#", "IP Address", "MAC Address", "Device Info"))
@@ -743,101 +739,169 @@ def kickalloff():
 
 
 # script's main function
-def main():
-    # display heading
-    heading()
+def window():
+    import PySimpleGUI as sg
+    import os
+    import socket
+    import threading
+    import tempfile
+    import urllib.request
 
-    if interactive:
+    # Add other necessary imports here
 
-        print('''
-----------------------------------
-  Network Interface: {}
-  MAC Address: {}
-  Gateway IP: {}
-  Hosts Online: {}
-----------------------------------
-        '''.format(defaultInterface, defaultInterfaceMac, defaultGatewayIP, str(len(hostsList))))
-        # display warning in case of no active hosts
-        if len(hostsList) == 0 or len(hostsList) == 1:
-            if len(hostsList) == 1:
-                if hostsList[0][0] == defaultGatewayIP:
-                    print(
-                        "\n{}{}WARNING: There are {}0 hosts up{} on you network except your gateway.\n\tYou can't kick anyone off {}:/{}\n".format(
-                            GREEN, RED, GREEN, RED, GREEN, END))
-                    os._exit(1)
-            else:
-                print(
-                    "\n{}{}WARNING: There are {}0 hosts{} up on you network.\n\tIt looks like something went wrong {}:/{}".format(
-                        GREEN, RED, GREEN, RED, GREEN, END))
-                print(
-                    "\n{}If you are experiencing this error multiple times, please submit an issue here:\n\t{}https://github.com/k4m4/AquaNET/issues\n{}".format(
-                        RED, BLUE, END))
-                os._exit(1)
+    # Add your other necessary functions here (e.g. kickoneoff, kicksomeoff, kickalloff, heading, shutdown, etc.)
 
-    else:
-        print(
-            "\n{}Using interface '{}{}{}' with MAC address '{}{}{}'.\nGateway IP: '{}{}{}' --> Target(s): '{}{}{}'.{}".format(
-                GREEN, RED, defaultInterface, GREEN, RED, defaultInterfaceMac, GREEN, RED, defaultGatewayIP, GREEN, RED,
-                ", ".join(options.targets), GREEN, END))
-
-    if options.targets is None and options.scan is False:
-        try:
-
-            while True:
-                optionBanner()
-
-                header = ('{}AquaNET{}>{}'.format(BLUE, WHITE, END))
-                choice = input(header)
-
-                if choice.upper() == 'E' or choice.upper() == 'EXIT':
-                    shutdown()
-
-                elif choice == '1':
-                    kickoneoff()
-
-                elif choice == '2':
-                    kicksomeoff()
-
-                elif choice == '3':
-                    kickalloff()
-
-                elif choice.upper() == 'CLEAR':
-                    os.system("clear||cls")
-                else:
-                    print("\n{}ERROR: Please select a valid option.{}\n".format(RED, END))
-
-        except KeyboardInterrupt:
-            shutdown()
-
-    elif options.scan is not False:
-        stopAnimation = False
-        t = threading.Thread(target=scanningAnimation, args=('Scanning your network, hang on...',))
-        t.daemon = True
-        t.start()
-
-        # commence scanning process
-        try:
+    def process_option(option):
+        if option == "Kick one off":
+            kickoneoff()
+        elif option == "Kick some off":
+            kicksomeoff()
+        elif option == "Kick all off":
+            kickalloff()
+        elif option == "Scan":
             scanNetwork()
-        except KeyboardInterrupt:
+        elif option == "Exit":
             shutdown()
-        stopAnimation = True
 
-        print("\nOnline IPs: ")
-        for i in range(len(onlineIPs)):
-            mac = ""
-            for host in hostsList:
-                if host[0] == onlineIPs[i]:
-                    mac = host[1]
-            try:
-                hostname = socket.gethostbyaddr(onlineIPs[i])[0]
-            except:
-                hostname = "N/A"
-            vendor = resolveMac(mac)
-            print("  [{}{}{}] {}{}{}\t{}{}\t{} ({}{}{}){}".format(YELLOW, str(i), WHITE, RED, str(onlineIPs[i]), BLUE,
-                                                                  mac, GREEN, vendor, YELLOW, hostname, GREEN, END))
+    def execute_threaded_function(option):
+        function_thread = threading.Thread(target=process_option, args=(option,))
+        function_thread.start()
 
-    else:
-        nonInteractiveAttack()
+    # Custom theme
+    sg.theme('DarkAmber')
+    sg.SetOptions(button_color=('white', 'red'), border_width=1)
+
+    # Custom button style
+    button_style = {'border_width': 2, 'size': (10, 1), 'font': ('Arial', 14, 'bold')}
+    layout = [
+        [sg.Image(filename="/Users/leki/Documents/AquaNet/icon.png"), sg.Text("Select an option:", font=('Arial', 16, 'bold'))],
+        [sg.Radio("Kick one off", "RADIO1", key="OPTION1", default=True, font=('Arial', 14)),
+         sg.Radio("Kick some off", "RADIO1", key="OPTION2", font=('Arial', 14)),
+         sg.Radio("Kick all off", "RADIO1", key="OPTION3", font=('Arial', 14)),
+         sg.Radio("Scan", "RADIO1", key="OPTION4", font=('Arial', 14))],
+        [sg.Output(size=(80, 20), font=('Arial', 12))],
+        [sg.Button("Start", **button_style), sg.Button("Exit", **button_style)]
+    ]
+
+    # Create the window
+    window = sg.Window("AquaNET", layout, element_justification='center', margins=(20, 20), finalize=True)
+
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED or event == "Exit":
+            break
+        elif event == "Start":
+            # ...
+            selected_option = ""
+            if values["OPTION1"]:
+                selected_option = "Kick one off"
+            elif values["OPTION2"]:
+                selected_option = "Kick some off"
+            elif values["OPTION3"]:
+                selected_option = "Kick all off"
+            elif values["OPTION4"]:
+                selected_option = "Scan"
+            execute_threaded_function(selected_option)
+
+    window.close()
+
+
+# def main():
+#
+#     # display heading
+#     heading()
+#
+#     if interactive:
+#
+#         print('''
+# ----------------------------------
+#   Network Interface: {}
+#   MAC Address: {}
+#   Gateway IP: {}
+#   Hosts Online: {}
+# ----------------------------------
+#         '''.format(defaultInterface, defaultInterfaceMac, defaultGatewayIP, str(len(hostsList))))
+#         # display warning in case of no active hosts
+#         if len(hostsList) == 0 or len(hostsList) == 1:
+#             if len(hostsList) == 1:
+#                 if hostsList[0][0] == defaultGatewayIP:
+#                     print(
+#                         "\n{}{}WARNING: There are {}0 hosts up{} on you network except your gateway.\n\tYou can't kick anyone off {}:/{}\n".format(
+#                             GREEN, RED, GREEN, RED, GREEN, END))
+#                     os._exit(1)
+#             else:
+#                 print(
+#                     "\n{}{}WARNING: There are {}0 hosts{} up on you network.\n\tIt looks like something went wrong {}:/{}".format(
+#                         GREEN, RED, GREEN, RED, GREEN, END))
+#                 print(
+#                     "\n{}If you are experiencing this error multiple times, please submit an issue here:\n\t{}https://github.com/k4m4/AquaNET/issues\n{}".format(
+#                         RED, BLUE, END))
+#                 os._exit(1)
+#
+#     else:
+#         print(
+#             "\n{}Using interface '{}{}{}' with MAC address '{}{}{}'.\nGateway IP: '{}{}{}' --> Target(s): '{}{}{}'.{}".format(
+#                 GREEN, RED, defaultInterface, GREEN, RED, defaultInterfaceMac, GREEN, RED, defaultGatewayIP, GREEN, RED,
+#                 ", ".join(options.targets), GREEN, END))
+#
+#     if options.targets is None and options.scan is False:
+#         try:
+#
+#             while True:
+#                 optionBanner()
+#
+#                 header = ('{}AquaNET{}>{}'.format(BLUE, WHITE, END))
+#                 choice = input(header)
+#
+#                 if choice.upper() == 'E' or choice.upper() == 'EXIT':
+#                     shutdown()
+#
+#                 elif choice == '1':
+#                     kickoneoff()
+#
+#                 elif choice == '2':
+#                     kicksomeoff()
+#
+#                 elif choice == '3':
+#                     kickalloff()
+#
+#                 elif choice.upper() == 'CLEAR':
+#                     os.system("clear||cls")
+#                 else:
+#                     print("\n{}ERROR: Please select a valid option.{}\n".format(RED, END))
+#
+#         except KeyboardInterrupt:
+#             shutdown()
+#
+#     elif options.scan is not False:
+#         stopAnimation = False
+#         t = threading.Thread(target=scanningAnimation, args=('Scanning your network, hang on...',))
+#         t.daemon = True
+#         t.start()
+#
+#         # commence scanning process
+#         try:
+#             scanNetwork()
+#         except KeyboardInterrupt:
+#             shutdown()
+#         stopAnimation = True
+#
+#         print("\nOnline IPs: ")
+#         for i in range(len(onlineIPs)):
+#             mac = ""
+#             for host in hostsList:
+#                 if host[0] == onlineIPs[i]:
+#                     mac = host[1]
+#             try:
+#                 hostname = socket.gethostbyaddr(onlineIPs[i])[0]
+#             except:
+#                 hostname = "N/A"
+#             vendor = resolveMac(mac)
+#             print("  [{}{}{}] {}{}{}\t{}{}\t{} ({}{}{}){}".format(YELLOW, str(i), WHITE, RED, str(onlineIPs[i]), BLUE,
+#                                                                   mac, GREEN, vendor, YELLOW, hostname, GREEN, END))
+#
+#     else:
+#         nonInteractiveAttack()
 
 
 if __name__ == '__main__':
@@ -864,7 +928,6 @@ if __name__ == '__main__':
 
     parser.add_option('-a', '--kick-all', action='store_true', default=False,
                       dest='kick_all', help='perform attack on all online devices')
-
 
     def targetList(option, opt, value, parser):
         setattr(parser.values, option.dest, value.split(','))
@@ -934,5 +997,4 @@ if __name__ == '__main__':
     else:
         # set to non-interactive attack
         interactive = False
-
-    main()
+    window()
