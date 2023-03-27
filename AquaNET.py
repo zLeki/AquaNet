@@ -1,13 +1,26 @@
 #!/usr/bin/env python
+import asyncio
 import os, sys, logging, math, traceback, optparse, threading
+import time
 import urllib
 from time import sleep
 
+import tkinter as tk
+loading_window = tk.Tk()
+loading_window.geometry("200x100")
+loading_window.title("Loading...")
+# Add a label to the loading window
+loading_label = tk.Label(loading_window, text="Loading, please wait...")
+loading_label.pack(pady=20)
+# Force the loading window to appear
+loading_window.update()
+from spoof import sent
 from scapy.layers.l2 import Ether, ARP
 
 BLUE, RED, WHITE, YELLOW, MAGENTA, GREEN, END = '\33[94m', '\33[94m', '\033[0m', '\33[94m', '\33[94m', '\33[94m', '\033[0m'
 
 try:
+
     # check whether user is root
     if os.geteuid() != 0:
         print(
@@ -54,6 +67,8 @@ _______  _____  _     _ _______ __   _ _______ _______
 |_____| |   __| |     | |_____| | \  | |______    |   
 |     | |____\| |_____| |     | |  \_| |______    |   
     """ + END)
+
+
 # loading animation during network scan
 def scanningAnimation(text):
     try:
@@ -81,6 +96,7 @@ def regenOnlineIPs():
 
     onlineIPs = []
     for host in hostsList:
+        print(host[0]+" ← Found")
         onlineIPs.append(host[0])
         if not defaultGatewayMacSet:
             if host[0] == defaultGatewayIP:
@@ -395,7 +411,6 @@ def nonInteractiveAttack():
         print("{}Re-arped{} target(s) successfully.{}".format(RED, MAGENTA, END))
 
 
-
 def kickoneoff():
     os.system("clear||cls")
 
@@ -455,6 +470,7 @@ def kickoneoff():
         print("\n{}Spoofing started... {}( {} pkts/min )".format(GREEN, END, str(options.packets)))
     else:
         print("\n{}Spoofing started... {}".format(GREEN, END))
+
     def periodic_scan_network():
         global reScan
         while True:
@@ -608,12 +624,12 @@ def kicksomeoff():
         print("{}Re-arped{} targets successfully.{}".format(RED, GREEN, END))
 
 
-
 def clear_console():
     if sys.platform.startswith('win'):
         os.system('cls')
     else:
         os.system('clear')
+
 
 def reprint_table(sent):
     clear_console()
@@ -639,7 +655,6 @@ def reprint_table(sent):
 
 
 def reprint_table():
-
     os.system("clear||cls")
     print("Target(s): ")
     print("{:<5} | {:<15} | {:<17} | {:<20}".format("#", "IP Address", "MAC Address", "Device Info"))
@@ -659,23 +674,26 @@ def reprint_table():
     else:
         print("\n{}Spoofing started... {}".format(GREEN, END))
 
-    print("\nSent: {}".format(spoof.sent))  # Display sent variable
+    print("\nSent: {}".format(sent))  # Display sent variable
+
 
 def kickalloff():
-    os.system("clear||cls")
+    print("Scanning your network")
 
-    print("\n{}Terminate all{} selected...{}\n".format(RED, GREEN, END))
+    # Create a new thread for the kickalloff function
+    t = threading.Thread(target=scanNetwork)
     t.daemon = True
     t.start()
+
     # commence scanning process
     try:
         scanNetwork()
     except KeyboardInterrupt:
         shutdown()
 
-    print("Target(s): ")
-    print("{:<5} | {:<15} | {:<17} | {:<20}".format("#", "IP Address", "MAC Address", "Device Info"))
-    print("-" * (5 + 1 + 15 + 1 + 17 + 1 + 20 + 1))
+    # print("Target(s): ")
+    # print("{:<5} | {:<15} | {:<17} | {:<20}".format("#", "IP Address", "MAC Address", "Device Info"))
+    # print("-" * (5 + 1 + 15 + 1 + 17 + 1 + 20 + 1))
 
     for i in range(len(onlineIPs)):
         mac = ""
@@ -691,30 +709,19 @@ def kickalloff():
     else:
         print("\n{}Spoofing started... {}".format(GREEN, END))
 
-    def periodic_scan_network():
-        global reScan
-        while True:
-            reScan += 1
-            if reScan == 4:
-                reScan = 0
-                scanNetwork()
-
-    # Start the periodic network scanning thread
-    scan_thread = threading.Thread(target=periodic_scan_network)
-    scan_thread.daemon = True
-    scan_thread.start()
-
     try:
         while True:
-            reprint_table()
+
             threads = []
             for host in hostsList:
                 if host[0] != defaultGatewayIP:
+                    print(host[0], "← Killing")
                     # dodge gateway (avoid crashing network itself)
                     thread = threading.Thread(target=spoof.sendPacket,
                                               args=(defaultInterfaceMac, defaultGatewayIP, host[0], host[1]))
                     threads.append(thread)
                     thread.start()
+                    time.sleep(0.005)
 
             # Wait for all threads to finish
             for thread in threads:
@@ -738,171 +745,100 @@ def kickalloff():
         print("{}Re-arped{} targets successfully.{}".format(RED, GREEN, END))
 
 
+
+
+class ConsoleLog(tk.Text):
+    def __init__(self, *args, **kwargs):
+        tk.Text.__init__(self, *args, **kwargs)
+        self.queue = []
+        self.update_me()
+
+    def write(self, line):
+        self.queue.append(line)
+
+    def update_me(self):
+        while self.queue:
+            line = self.queue.pop(0)
+            self.insert(tk.END, line)
+            self.see(tk.END)
+        self.after(100, self.update_me)
+
+
 # script's main function
-def window():
-    import PySimpleGUI as sg
-    import os
-    import socket
-    import threading
-    import tempfile
-    import urllib.request
-
-    # Add other necessary imports here
-
-    # Add your other necessary functions here (e.g. kickoneoff, kicksomeoff, kickalloff, heading, shutdown, etc.)
-
-    def process_option(option):
-        if option == "Kick one off":
-            kickoneoff()
-        elif option == "Kick some off":
-            kicksomeoff()
-        elif option == "Kick all off":
-            kickalloff()
-        elif option == "Scan":
-            scanNetwork()
-        elif option == "Exit":
-            shutdown()
-
-    def execute_threaded_function(option):
-        function_thread = threading.Thread(target=process_option, args=(option,))
-        function_thread.start()
-
-    # Custom theme
-    sg.theme('DarkAmber')
-    sg.SetOptions(button_color=('white', 'red'), border_width=1)
-
-    # Custom button style
-    button_style = {'border_width': 2, 'size': (10, 1), 'font': ('Arial', 14, 'bold')}
-    layout = [
-        [sg.Image(filename="/Users/leki/Documents/AquaNet/icon.png"), sg.Text("Select an option:", font=('Arial', 16, 'bold'))],
-        [sg.Radio("Kick one off", "RADIO1", key="OPTION1", default=True, font=('Arial', 14)),
-         sg.Radio("Kick some off", "RADIO1", key="OPTION2", font=('Arial', 14)),
-         sg.Radio("Kick all off", "RADIO1", key="OPTION3", font=('Arial', 14)),
-         sg.Radio("Scan", "RADIO1", key="OPTION4", font=('Arial', 14))],
-        [sg.Output(size=(80, 20), font=('Arial', 12))],
-        [sg.Button("Start", **button_style), sg.Button("Exit", **button_style)]
-    ]
-
-    # Create the window
-    window = sg.Window("AquaNET", layout, element_justification='center', margins=(20, 20), finalize=True)
-
-    while True:
-        event, values = window.read()
-        if event == sg.WIN_CLOSED or event == "Exit":
-            break
-        elif event == "Start":
-            # ...
-            selected_option = ""
-            if values["OPTION1"]:
-                selected_option = "Kick one off"
-            elif values["OPTION2"]:
-                selected_option = "Kick some off"
-            elif values["OPTION3"]:
-                selected_option = "Kick all off"
-            elif values["OPTION4"]:
-                selected_option = "Scan"
-            execute_threaded_function(selected_option)
-
-    window.close()
+import customtkinter as ctk
 
 
-# def main():
-#
-#     # display heading
-#     heading()
-#
-#     if interactive:
-#
-#         print('''
-# ----------------------------------
-#   Network Interface: {}
-#   MAC Address: {}
-#   Gateway IP: {}
-#   Hosts Online: {}
-# ----------------------------------
-#         '''.format(defaultInterface, defaultInterfaceMac, defaultGatewayIP, str(len(hostsList))))
-#         # display warning in case of no active hosts
-#         if len(hostsList) == 0 or len(hostsList) == 1:
-#             if len(hostsList) == 1:
-#                 if hostsList[0][0] == defaultGatewayIP:
-#                     print(
-#                         "\n{}{}WARNING: There are {}0 hosts up{} on you network except your gateway.\n\tYou can't kick anyone off {}:/{}\n".format(
-#                             GREEN, RED, GREEN, RED, GREEN, END))
-#                     os._exit(1)
-#             else:
-#                 print(
-#                     "\n{}{}WARNING: There are {}0 hosts{} up on you network.\n\tIt looks like something went wrong {}:/{}".format(
-#                         GREEN, RED, GREEN, RED, GREEN, END))
-#                 print(
-#                     "\n{}If you are experiencing this error multiple times, please submit an issue here:\n\t{}https://github.com/k4m4/AquaNET/issues\n{}".format(
-#                         RED, BLUE, END))
-#                 os._exit(1)
-#
-#     else:
-#         print(
-#             "\n{}Using interface '{}{}{}' with MAC address '{}{}{}'.\nGateway IP: '{}{}{}' --> Target(s): '{}{}{}'.{}".format(
-#                 GREEN, RED, defaultInterface, GREEN, RED, defaultInterfaceMac, GREEN, RED, defaultGatewayIP, GREEN, RED,
-#                 ", ".join(options.targets), GREEN, END))
-#
-#     if options.targets is None and options.scan is False:
-#         try:
-#
-#             while True:
-#                 optionBanner()
-#
-#                 header = ('{}AquaNET{}>{}'.format(BLUE, WHITE, END))
-#                 choice = input(header)
-#
-#                 if choice.upper() == 'E' or choice.upper() == 'EXIT':
-#                     shutdown()
-#
-#                 elif choice == '1':
-#                     kickoneoff()
-#
-#                 elif choice == '2':
-#                     kicksomeoff()
-#
-#                 elif choice == '3':
-#                     kickalloff()
-#
-#                 elif choice.upper() == 'CLEAR':
-#                     os.system("clear||cls")
-#                 else:
-#                     print("\n{}ERROR: Please select a valid option.{}\n".format(RED, END))
-#
-#         except KeyboardInterrupt:
-#             shutdown()
-#
-#     elif options.scan is not False:
-#         stopAnimation = False
-#         t = threading.Thread(target=scanningAnimation, args=('Scanning your network, hang on...',))
-#         t.daemon = True
-#         t.start()
-#
-#         # commence scanning process
-#         try:
-#             scanNetwork()
-#         except KeyboardInterrupt:
-#             shutdown()
-#         stopAnimation = True
-#
-#         print("\nOnline IPs: ")
-#         for i in range(len(onlineIPs)):
-#             mac = ""
-#             for host in hostsList:
-#                 if host[0] == onlineIPs[i]:
-#                     mac = host[1]
-#             try:
-#                 hostname = socket.gethostbyaddr(onlineIPs[i])[0]
-#             except:
-#                 hostname = "N/A"
-#             vendor = resolveMac(mac)
-#             print("  [{}{}{}] {}{}{}\t{}{}\t{} ({}{}{}){}".format(YELLOW, str(i), WHITE, RED, str(onlineIPs[i]), BLUE,
-#                                                                   mac, GREEN, vendor, YELLOW, hostname, GREEN, END))
-#
-#     else:
-#         nonInteractiveAttack()
+def end():
+    print("Re-Arping")
+    print("\nRe-arping targets...")
+    reArp = 1
+    while reArp != 10:
+        # broadcast ARP packets with legitimate info to restore connection
+        for host in hostsList:
+            if host[0] != defaultGatewayIP:
+                try:
+                    # dodge gateway
+                    spoof.sendPacket(defaultGatewayMac, defaultGatewayIP, host[0], host[1])
+                except KeyboardInterrupt:
+                    pass
+                except:
+                    runDebug()
+        reArp += 1
+        time.sleep(0.2)
+    print("Re-arped targets successfully.")
+    time.sleep(1)
+    os._exit(0)
 
+
+class WifiKillerApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("Wifi Killer [Dev]")
+
+        main_frame = tk.Frame(self)
+        main_frame.pack(padx=10, pady=10)
+
+        # Sidebar
+        sidebar = tk.Frame(main_frame, bg="light gray")
+        sidebar.grid(row=0, column=0, rowspan=4, padx=5, pady=5, sticky=tk.N + tk.S)
+
+        wifi_kill_button = ctk.CTkButton(sidebar, text="Wifi Kill", border_width=1)
+        wifi_kill_button.pack(pady=5)
+
+        # Main content
+        main_content = tk.Frame(main_frame, bg="light gray")
+        main_content.grid(row=0, column=1, rowspan=4, padx=5, pady=5, sticky=tk.N + tk.S)
+
+        wifi_kill_label = tk.Label(main_content, text="Wifi Kill", bg="light gray")
+        wifi_kill_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+
+        mac_address_entry = tk.Entry(main_content)
+        mac_address_entry.insert(0, defaultInterfaceMac)
+        mac_address_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        ok_button = ctk.CTkButton(main_content, text="OK", width=7, border_width=1)
+        ok_button.grid(row=0, column=2, padx=5, pady=5)
+
+        history_label = tk.Label(main_content, text="History \\LOG", bg="light gray")
+        history_label.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+
+        console_log = ConsoleLog(main_content, width=40, height=10, wrap="word", highlightthickness=1)
+        console_log.grid(row=2, column=1, padx=5, pady=5)
+        kill_button = ctk.CTkButton(main_content, text="Kill", command=self.kick_all_off, width=7, border_width=1)
+        kill_button.grid(row=3, column=1, padx=5, pady=5, sticky=tk.W)
+        revive_button = ctk.CTkButton(main_content, text="Revive", command=end, width=7, border_width=1)
+        revive_button.grid(row=3, column=1, padx=5, pady=5, sticky=tk.E)
+        revive_button.grid(row=3, column=1, padx=5, pady=5, sticky=tk.E)
+        # ... (other Tkinter widgets)
+
+        sys.stdout = console_log
+        print("Any activity will appear here.")
+
+    def kick_all_off(self):
+        t = threading.Thread(target=kickalloff)
+        t.daemon = True
+        t.start()
 
 if __name__ == '__main__':
 
@@ -928,6 +864,7 @@ if __name__ == '__main__':
 
     parser.add_option('-a', '--kick-all', action='store_true', default=False,
                       dest='kick_all', help='perform attack on all online devices')
+
 
     def targetList(option, opt, value, parser):
         setattr(parser.values, option.dest, value.split(','))
@@ -955,7 +892,7 @@ if __name__ == '__main__':
         defaultGatewayIP = getGatewayIP()
         defaultInterfaceMac = getDefaultInterfaceMAC()
         global defaultGatewayMacSet
-        defaultGatewayMacSet = False
+        defaultGatewayMacSet = True
     except KeyboardInterrupt:
         shutdown()
 
@@ -970,17 +907,17 @@ if __name__ == '__main__':
     if options.targets is None and options.kick_all is False:
         # set to interactive attack
         interactive = True
-        global stopAnimation
-        stopAnimation = False
-        t = threading.Thread(target=scanningAnimation, args=('Scanning your network, hang on...',))
-        t.daemon = True
-        t.start()
-        # commence scanning process
-        try:
-            scanNetwork()
-        except KeyboardInterrupt:
-            shutdown()
-        stopAnimation = True
+        # global stopAnimation
+        # stopAnimation = False
+        # t = threading.Thread(target=scanningAnimation, args=('Scanning your network, hang on...',))
+        # t.daemon = True
+        # t.start()
+        # # commence scanning process
+        # try:
+        #     scanNetwork()
+        # except KeyboardInterrupt:
+        #     shutdown()
+        # stopAnimation = True
     elif options.targets is None and options.kick_all is True:
         # set to non-interactive attack
         interactive = False
@@ -997,4 +934,6 @@ if __name__ == '__main__':
     else:
         # set to non-interactive attack
         interactive = False
-    window()
+    loading_window.destroy()
+    app = WifiKillerApp()
+    app.mainloop()
