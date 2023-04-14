@@ -20,7 +20,7 @@ from scapy.all import (
     Dot11,
     Dot11Deauth
 )
-
+sent = 0
 # send malicious ARP packets
 def sendPacket(my_mac, gateway_ip, target_ip, target_mac):
     ether = Ether()
